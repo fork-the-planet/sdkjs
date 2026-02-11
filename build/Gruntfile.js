@@ -74,12 +74,17 @@ module.exports = function(grunt) {
 		return configs;
 	}
 	function writeScripts(config, name) {
-		const develop = '../develop/sdkjs/';
+		const develop = process.env.BUILD_ROOT
+			? path.join(process.env.BUILD_ROOT, 'sdkjs', 'develop', 'sdkjs') + '/'
+			: '../develop/sdkjs/';
 		const fileName = 'scripts.js';
 		let files = ['../vendor/polyfill.js', '../common/AllFonts.js'];
 		if (grunt.option('compiled')) {
-			//todo set window['AscNotLoadAllScript'] = false; (in applyDocumentChanges.js)
-			files.push(deploy + name + '/sdk-all-min.js');
+			if (process.env.BUILD_ROOT) {
+				files.push(path.join('..', name, 'sdk-all-min.js'));
+			} else {
+				files.push(path.join(deploy, name, 'sdk-all-min.js'));
+			}
 		} else {
 			files = files.concat(['../common/applyDocumentChanges.js'], getFilesMin(config), getFilesAll(config));
 		}
@@ -100,35 +105,35 @@ module.exports = function(grunt) {
 
 	CConfig.prototype.append = function (basePath = '') {
 		const pathConfigs = path.join(basePath, 'configs');
-		
+
 		function appendOption(name) {
 			const option = loadConfig(pathConfigs, name);
 			if (!option)
 				return;
-			
+
 			fixPath(option, basePath);
-			
+
 			if (!this[name]) {
 				this[name] = option;
 				return;
 			}
-			
+
 			function mergeProps(base, addon) {
 				for (let prop in addon)
 				{
 					if (Array.isArray(addon[prop])) {
 						base[prop] = Array.isArray(base[prop]) ? base[prop].concat(addon[prop]) : addon[prop];
 					} else {
-						if (!base[prop]) 
+						if (!base[prop])
 							base[prop] = {};
-						mergeProps(base[prop], addon[prop]);						
+						mergeProps(base[prop], addon[prop]);
 					}
 				}
 			}
-			
-			mergeProps(this[name], option);			
+
+			mergeProps(this[name], option);
 		}
-		
+
 		appendOption.call(this, 'externs');
 		appendOption.call(this, 'word');
 		appendOption.call(this, 'cell');
@@ -175,8 +180,8 @@ module.exports = function(grunt) {
 	}
 	const path = require('path');
 	const deploy = process.env.BUILD_ROOT
-  					? path.join(process.env.BUILD_ROOT, 'sdkjs')
-  					: path.join('..', 'deploy', 'sdkjs');
+		? path.join(process.env.BUILD_ROOT, 'sdkjs')
+		: path.join('..', 'deploy', 'sdkjs');
 	const word = path.join(deploy, 'word');
 	const cell = path.join(deploy, 'cell');
 	const slide = path.join(deploy, 'slide');
@@ -185,8 +190,11 @@ module.exports = function(grunt) {
 	const level = grunt.option('level') || 'ADVANCED';
 	const formatting = grunt.option('formatting') || '';
 
+	const ccPlatform = process.env.CC_PLATFORM
+		? process.env.CC_PLATFORM.split(',')
+		: ['native', 'java'];
 	require('google-closure-compiler').grunt(grunt, {
-		platform: ['native', 'java'],
+		platform: ccPlatform,
 		extraArguments: ['-Xms2048m']
 	});
 
@@ -198,6 +206,12 @@ module.exports = function(grunt) {
 		return;
 	}
 	const otherFiles = [
+		{
+			cwd: '../vendor/',
+			src: ['polyfill.js'],
+			dest: path.join(deploy, 'vendor'),
+			name: 'vendor'
+		},
 		{
 			cwd: '../common/',
 			src: [
@@ -267,21 +281,21 @@ module.exports = function(grunt) {
 
 	function getCompileConfig(sdkmin, sdkall, outmin, outall, name, pathPrefix) {
 		const args = compilerArgs.concat (
-		`--define=window.AscCommon.g_cCompanyName='${companyName}'`,
-		`--define=window.AscCommon.g_cProductVersion='${version}'`,
-		`--define=window.AscCommon.g_cBuildNumber='${buildNumber}'`,
-		`--define=window.AscCommon.g_cIsBeta='${beta}'`,
-		'--rewrite_polyfills=true',
-		'--warning_level=QUIET',
-		'--language_out=ECMASCRIPT5',
-		'--compilation_level=' + level,
-		...sdkmin.map((file) => ('--js=' + file)),
-		`--chunk=${outmin}:${sdkmin.length}`,
-		`--chunk_wrapper=${outmin}:${license}\n%s`,
-		...sdkall.map((file) => ('--js=' + file)),
-		`--chunk=${outall}:${sdkall.length}:${outmin}`,
-		`--chunk_wrapper=${outall}:${license}\n(function(window, undefined) {%s})(window);`,
-		`--chunk_output_path_prefix=${pathPrefix}`);
+			`--define=window.AscCommon.g_cCompanyName='${companyName}'`,
+			`--define=window.AscCommon.g_cProductVersion='${version}'`,
+			`--define=window.AscCommon.g_cBuildNumber='${buildNumber}'`,
+			`--define=window.AscCommon.g_cIsBeta='${beta}'`,
+			'--rewrite_polyfills=true',
+			'--warning_level=QUIET',
+			'--language_out=ECMASCRIPT5',
+			'--compilation_level=' + level,
+			...sdkmin.map((file) => ('--js=' + file)),
+			`--chunk=${outmin}:${sdkmin.length}`,
+			`--chunk_wrapper=${outmin}:${license}\n%s`,
+			...sdkall.map((file) => ('--js=' + file)),
+			`--chunk=${outall}:${sdkall.length}:${outmin}`,
+			`--chunk_wrapper=${outall}:${license}\n(function(window, undefined) {%s})(window);`,
+			`--chunk_output_path_prefix=${pathPrefix}`);
 		if (grunt.option('map')) {
 			grunt.file.mkdir(path.join('./maps'));
 			args.push('--property_renaming_report=' + path.join(`maps/${name}.props.js.map`));
@@ -502,7 +516,9 @@ module.exports = function(grunt) {
 		grunt.task.run(copyTasks);
 	});
 	grunt.registerTask('clean-develop', 'Clean develop scripts', function () {
-		const develop = '../develop/sdkjs/';
+		const develop = process.env.BUILD_ROOT
+			? path.join(process.env.BUILD_ROOT, 'sdkjs', 'develop', 'sdkjs') + '/'
+			: '../develop/sdkjs/';
 		grunt.initConfig({
 			clean: {
 				tmp: {
@@ -525,7 +541,11 @@ module.exports = function(grunt) {
 		writeScripts(configs.slide['sdk'], 'slide');
 		writeScripts(configs.visio['sdk'], 'visio');
 	});
-	const defaultTasks = ['clean-deploy', 'compile-sdk', 'copy-other'];
+	grunt.registerTask('develop-compiled', 'Build develop scripts for compiled SDK', function () {
+		grunt.option('compiled', true);
+		grunt.task.run('clean-develop', 'build-develop');
+	});
+	const defaultTasks = ['clean-deploy', 'compile-sdk', 'copy-other', 'develop-compiled'];
 	if (grunt.option('map')) {
 		defaultTasks.push('copy-maps');
 	}
