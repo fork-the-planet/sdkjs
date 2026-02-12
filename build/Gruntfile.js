@@ -545,7 +545,7 @@ module.exports = function(grunt) {
 		grunt.option('compiled', true);
 		grunt.task.run('clean-develop', 'build-develop');
 	});
-	const defaultTasks = ['clean-deploy', 'compile-sdk', 'copy-other', 'develop-compiled'];
+	const defaultTasks = ['clean-deploy', 'compile-sdk', 'copy-other'];
 	if (grunt.option('map')) {
 		defaultTasks.push('copy-maps');
 	}
