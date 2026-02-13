@@ -541,10 +541,6 @@ module.exports = function(grunt) {
 		writeScripts(configs.slide['sdk'], 'slide');
 		writeScripts(configs.visio['sdk'], 'visio');
 	});
-	grunt.registerTask('develop-compiled', 'Build develop scripts for compiled SDK', function () {
-		grunt.option('compiled', true);
-		grunt.task.run('clean-develop', 'build-develop');
-	});
 	const defaultTasks = ['clean-deploy', 'compile-sdk', 'copy-other'];
 	if (grunt.option('map')) {
 		defaultTasks.push('copy-maps');

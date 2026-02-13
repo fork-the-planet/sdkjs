@@ -10,3 +10,8 @@ For the full development environment setup, see the [fork/develop README](../../
 	- npm install -g grunt-cli
 	- npm ci
 	- grunt
+
+3. Additional tasks:
+	- `grunt develop` — generates develop scripts (scripts.js) pointing to individual source files (for debugging without compilation)
+	- `grunt develop --compiled` — generates develop scripts pointing to compiled bundles (sdk-all-min.js)
+	- `grunt --map` — copies source maps
