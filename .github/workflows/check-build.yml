@@ -2,17 +2,19 @@ name: Check sdkjs
 on:
   push:
     branches:
+      - fork
       - develop
       - 'release/**'
       - 'hotfix/**'
   pull_request:
     branches:
+      - fork
       - develop
       - 'release/**'
       - 'hotfix/**'
 jobs:
   code-style:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: check out repository
         uses: actions/checkout@v3
@@ -26,7 +28,7 @@ jobs:
         run: python tests/code-style/check.py
 
   unit-tests:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Install dependencies
         run: |
@@ -99,15 +101,8 @@ jobs:
           node node_modules/node-qunit-puppeteer/cli.js tests/word/shortcuts/shortcuts.html 30000 "--no-sandbox"
           node node_modules/node-qunit-puppeteer/cli.js tests/slide/shortcuts/shortcuts.html 30000 "--no-sandbox"
 
-      - name: Send message to telegram if failure
-        if: failure()
-        uses: ./.github/actions/send-message
-        with:
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          chat: ${{ secrets.TELEGRAM_TO }}
-
   build-test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: check out repository
         uses: actions/checkout@v4
@@ -119,7 +114,7 @@ jobs:
         uses: actions/checkout@v4
         continue-on-error: true
         with:
-          repository: ONLYOFFICE/sdkjs-forms
+          repository: Euro-Office/sdkjs-forms
           token: ${{ secrets.READ_PAT }}
           path: sdkjs-forms
           ref: ${{ github.ref }}
@@ -127,7 +122,7 @@ jobs:
         if: steps.sdkjs-forms.outcome != 'success'
         uses: actions/checkout@v4
         with:
-          repository: ONLYOFFICE/sdkjs-forms
+          repository: Euro-Office/sdkjs-forms
           token: ${{ secrets.READ_PAT }}
           path: sdkjs-forms
           ref: master
@@ -143,10 +138,3 @@ jobs:
           npm install grunt-cli
           npm install --prefix build
           node node_modules/grunt-cli/bin/grunt --gruntfile build/Gruntfile.js
-
-      - name: Send message to telegram if failure
-        if: failure()
-        uses: ./sdkjs/.github/actions/send-message
-        with:
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          chat: ${{ secrets.TELEGRAM_TO }}
