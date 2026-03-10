@@ -503,7 +503,7 @@
 			switch (typeEditor)
 			{
 				case AscCommon.c_oEditorId.Word:
-					typeEditorString = "word";
+					typeEditorString = this.api.isPdfEditor() ? "pdf" : "word";
 					break;
 				case AscCommon.c_oEditorId.Presentation:
 					typeEditorString = "slide";
@@ -1391,7 +1391,7 @@
 						"variations" : [
 							{
 								"isViewer"            : true,
-								"EditorsSupport"      : ["word", "cell", "slide"],
+								"EditorsSupport"      : ["word", "cell", "slide", "pdf"],
 								"type"                : "system",
 								"buttons"             : []
 							}
