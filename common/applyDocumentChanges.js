@@ -23,10 +23,10 @@
  *
  */
 
-window['AscApplyChanges'] = true;	// Флаг для проверки
+window['AscApplyChanges'] = true;	// Flag for checking
 window['AscChanges'] = [
 
-];			// Массив строк изменений - изменения всех пользователей [[changes_1],[changes_2],..,[changes_n]]
+];			// Array of change strings - changes from all users [[changes_1],[changes_2],..,[changes_n]]
 
-// Только для не минимизированной версии. В сборку этот файл не включать!!!
-window['AscNotLoadAllScript'] = true;	// Флаг для проверки
+// Only for non-minified version. Do not include this file in the build!!!
+window['AscNotLoadAllScript'] = true;	// Flag for checking

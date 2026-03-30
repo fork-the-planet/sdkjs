@@ -72,7 +72,7 @@
 		{
 			if (true)
 			{
-				// это "подстройка под интерфейс" - после убирания этого в общий код - удалить
+				// this is an "interface adjustment" - remove this after it is moved into the shared code
 				if (Math.abs(supportedScaleValues[i] - systemScaling) > 0.0001)
 				{
 					if (supportedScaleValues[i] > (systemScaling - 0.0001))
