@@ -12519,7 +12519,6 @@
                     return oThis.ReadPic(t,l, oDrawing);
                 });
             }
-            /** proprietary begin **/
             else if ( c_oSer_DrawingType.GraphicFrame == type )
             {
                 //todo удалить
@@ -12527,7 +12526,6 @@
                     return oThis.ReadGraphicFrame(t, l, oDrawing);
                 });
             }
-            /** proprietary end **/
             else if ( c_oSer_DrawingType.pptxDrawing == type )
             {
                 oDrawing.graphicObject = this.ReadPptxDrawing();
