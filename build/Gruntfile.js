@@ -540,5 +540,22 @@ module.exports = function(grunt) {
 		defaultTasks.push('copy-maps');
 	}
 	grunt.registerTask('default', defaultTasks);
-	grunt.registerTask('develop', ['clean-develop', 'build-develop']);
+	// this file, device_scale is used in html templates and needs to be copied
+	// it is basically it's own thing, but processed like this to be consistent and not hacky
+	grunt.registerTask('copy-standalone', 'Copy standalone scripts needed by HTML templates', function () {
+		grunt.initConfig({
+			copy: {
+				standalone: {
+					files: [{
+						expand: true,
+						cwd: '../common/',
+						src: ['device_scale.js'],
+						dest: path.join(deploy, 'common')
+					}]
+				}
+			}
+		});
+		grunt.task.run('copy');
+	});
+	grunt.registerTask('develop', ['clean-develop', 'build-develop', 'copy-standalone']);
 };
