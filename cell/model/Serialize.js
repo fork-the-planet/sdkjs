@@ -11341,29 +11341,56 @@
 			let res = c_oSerConstants.ReadOk;
 			const oThis = this;
 			if (c_oSerControlTypes.Control == type) {
-				const oPr = {shape: null};
-				const oControl = new AscFormat.CControl();
-				res = this.bcr.Read1(length, function(t,l){
-					return oThis.ReadControl(t,l, oControl, oPr);
-				});
+				console.log('[RC0] new CControl');
+				let oControl;
+				try { oControl = new AscFormat.CControl(); } catch(e) { console.error('[RC0] CControl CRASH:', e && e.message, e && e.stack); return res; }
+				console.log('[RC0] CControl ok');
+				try {
+					res = this.bcr.Read1(length, function(t,l){
+						return oThis.ReadControl(t,l, oControl, null);
+					});
+				} catch(e) { console.error('[RC0] Read1 CRASH:', e && e.message, e && e.stack); return res; }
+				console.log('[RC0] Read1 ok, anchor=', !!oControl.controlPr.anchor, 'objectType=', oControl.formControlPr && oControl.formControlPr.objectType);
 				if (oControl.controlPr.anchor) {
-					if (oControl.initController()) {
+					let initOk;
+					try { initOk = oControl.initController(); } catch(e) { console.error('[RC0] initController CRASH:', e && e.message, e && e.stack); return res; }
+					console.log('[RC0] initController=', initOk);
+					if (initOk) {
 						const oDrawingBase = oControl.controlPr.anchor;
 						oControl.controlPr.anchor = null;
 						oDrawingBase.graphicObject = oControl;
-						var sp_pr = oPr.shape && oPr.shape.spPr && oPr.shape.spPr.createDuplicate() || new AscFormat.CSpPr();
-						sp_pr.setGeometry(AscFormat.CreateGeometry('rect'));
-						oControl.setSpPr(sp_pr);
-						sp_pr.setParent(oControl);
-						if (oPr.shape && oPr.shape.txBody) {
-							const oTxBody = oPr.shape.txBody.createDuplicate();
-							oControl.setTxBody(oTxBody);
-							oControl.initTextProperties();
-							oControl.clearVmlTxBody();
-						} else {
-							oControl.createTextBody();
+						try {
+							const oSpPr = new AscFormat.CSpPr();
+							console.log('[RC] CSpPr ok');
+							oSpPr.setGeometry(AscFormat.CreateGeometry('rect'));
+							console.log('[RC] setGeometry ok');
+							const oXfrm = new AscFormat.CXfrm();
+							oXfrm.setOffX(0);
+							oXfrm.setOffY(0);
+							oXfrm.setExtX(oDrawingBase.ext && oDrawingBase.ext.cx || 0);
+							oXfrm.setExtY(oDrawingBase.ext && oDrawingBase.ext.cy || 0);
+							console.log('[RC] xfrm ok');
+							AscFormat.ExecuteNoHistory(function () {
+								oSpPr.setXfrm(oXfrm); console.log('[RC] setXfrm ok');
+								oControl.setSpPr(oSpPr); console.log('[RC] setSpPr ok');
+								oSpPr.setParent(oControl); console.log('[RC] spPr.setParent ok');
+								oControl.createTextBody(); console.log('[RC] createTextBody ok');
+								if (oControl.name) {
+									const oTxBody = oControl.txBody;
+									if (oTxBody && oTxBody.content && oTxBody.content.Content && oTxBody.content.Content.length > 0) {
+										const oParagraph = oTxBody.content.Content[0];
+										const oRun = new AscCommonWord.ParaRun(oParagraph, false);
+										oRun.AddText(oControl.name);
+										oParagraph.AddToContent(0, oRun);
+										console.log('[RC] text ok');
+									}
+								}
+								oControl.initTextProperties(); console.log('[RC] initTextProperties ok');
+								oDrawingBase.initAfterSerialize(oWorksheet); console.log('[RC] initAfterSerialize ok');
+							});
+						} catch(e) {
+							console.error('[RC] CRASH:', e && e.message, '\n', e && e.stack);
 						}
-						oDrawingBase.initAfterSerialize(oWorksheet);
 					}
 				}
 			} else {
@@ -11563,8 +11590,10 @@
 					break;
 				}
 				case c_oSerControlTypes.Shape: {
-					const oShape = this.ReadPptxDrawing();
-					oPr.shape = oShape;
+					// Cannot use ReadPptxDrawing() in cell context — it accesses Word components
+					// (AscCommon.WW, AscWord) that are not available here. The shape is
+					// reconstructed from control properties (name, anchor) during ReadControls.
+					res = c_oSerConstants.ReadUnknown;
 					break;
 				}
 				default: {

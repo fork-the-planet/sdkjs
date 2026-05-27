@@ -143,7 +143,7 @@ var editor;
 
   spreadsheet_api.prototype._init = function() {
     AscCommon.baseEditorsApi.prototype._init.call(this);
-    this.topLineEditorElement = document.getElementById(this.topLineEditorName);
+    this.topLineEditorElement = this.topLineEditorName ? document.getElementById(this.topLineEditorName) : null;
     // ToDo нужно ли это
     asc['editor'] = ( asc['editor'] || this );
   };
@@ -5300,6 +5300,90 @@ var editor;
         }
     };
 
+  spreadsheet_api.prototype.asc_addCheckBoxOnSheet = function() {
+    console.log('[CB-api] asc_addCheckBoxOnSheet ENTRY wb=' + !!this.wb);
+    if (!this.wb) return;
+    var ws = this.wb.getWorksheet();
+    console.log('[CB-api] ws=' + !!ws + ' objectRender=' + !!(ws && ws.objectRender) + ' sheetProt=' + !!(ws && ws.model && ws.model.getSheetProtection(Asc.c_oAscSheetProtectType.objects)));
+    if (ws && ws.model && ws.model.getSheetProtection(Asc.c_oAscSheetProtectType.objects)) {
+      return false;
+    }
+    if (ws && ws.objectRender) {
+      var drawingsBefore = ws.model ? ws.model.Drawings.length : -1;
+      var oHistory = AscCommon.History;
+      var histIdxBefore = oHistory ? oHistory.Index : -1;
+      var itemsBefore = (oHistory && oHistory.Points && oHistory.Points[oHistory.Index]) ? oHistory.Points[oHistory.Index].Items.length : -1;
+      console.log('[CB-api] addCheckBoxOnSheet called. g_oTableId.Id=' + (AscCommon.g_oTableId ? AscCommon.g_oTableId.Id : 'N/A') + ' g_oTableId.m_bTurnOff=' + (AscCommon.g_oTableId ? AscCommon.g_oTableId.m_bTurnOff : 'N/A') + ' History.CanAddChanges=' + (oHistory ? oHistory.CanAddChanges() : 'N/A') + ' History.TurnOffHistory=' + (oHistory ? oHistory.TurnOffHistory : 'N/A') + ' drawings.before=' + drawingsBefore + ' histIdx=' + histIdxBefore + ' itemsBefore=' + itemsBefore);
+      ws.objectRender.addCheckBoxOnSheet();
+      var drawingsAfter = ws.model ? ws.model.Drawings.length : -1;
+      console.log('[CB-api] addCheckBoxOnSheet done. drawings.after=' + drawingsAfter);
+      if (ws.model && ws.model.Drawings.length > drawingsBefore) {
+        var oDrawing = ws.model.Drawings[ws.model.Drawings.length - 1];
+        var oCtrl = oDrawing && oDrawing.graphicObject;
+        console.log('[CB-api] Last drawing: type=' + (oDrawing && oDrawing.Type) + ' ctrl=' + (oCtrl ? oCtrl.constructor.name : 'null') + ' ctrl.Id=' + (oCtrl ? oCtrl.Id : 'N/A') + ' ctrl.formControlPr.Id=' + (oCtrl && oCtrl.formControlPr ? oCtrl.formControlPr.Id : 'N/A') + ' ctrl.controlPr.Id=' + (oCtrl && oCtrl.controlPr ? oCtrl.controlPr.Id : 'N/A') + ' ctrl.spPr.Id=' + (oCtrl && oCtrl.spPr ? oCtrl.spPr.Id : 'N/A'));
+        var oTableId = AscCommon.g_oTableId;
+        console.log('[CB-api] g_oTableId.Get_ById(ctrl.Id)=' + (oTableId && oCtrl ? (oTableId.Get_ById(oCtrl.Id) ? 'FOUND' : 'NOT FOUND') : 'N/A') + ' Get_ById(fcp.Id)=' + (oTableId && oCtrl && oCtrl.formControlPr ? (oTableId.Get_ById(oCtrl.formControlPr.Id) ? 'FOUND' : 'NOT FOUND') : 'N/A'));
+        var oPoint = oHistory && oHistory.Points && oHistory.Points[oHistory.Index];
+        var itemsAfter = oPoint ? oPoint.Items.length : -1;
+        console.log('[CB-api] History items added: ' + (itemsAfter - itemsBefore));
+        if (oPoint) {
+          var idItems = [];
+          for (var i = itemsBefore; i < itemsAfter; i++) {
+            var item = oPoint.Items[i];
+            var cls = item && item.Class;
+            var typeName = cls ? (cls.constructor ? cls.constructor.name : String(cls.Type)) : 'null';
+            var ownerId = cls && cls.GetClass ? (cls.GetClass() ? cls.GetClass().Id : 'no-class') : 'N/A';
+            idItems.push(typeName + '(owner.Id=' + ownerId + ')');
+          }
+          console.log('[CB-api] History items: ' + idItems.join(', '));
+        }
+      }
+    }
+  };
+
+  spreadsheet_api.prototype.asc_getCheckBoxProps = function() {
+    if (!this.wb) return null;
+    var ws = this.wb.getWorksheet();
+    if (!ws || !ws.objectRender || !ws.objectRender.controller) return null;
+    var ctrl = ws.objectRender.controller;
+    if (!ctrl.selectedObjects || ctrl.selectedObjects.length !== 1) return null;
+    var obj = ctrl.selectedObjects[0];
+    if (!obj || !obj.isControl || !obj.isControl() || !obj.isCheckBox || !obj.isCheckBox()) return null;
+    var fmlaLink = obj.formControlPr ? (obj.formControlPr.fmlaLink || '') : '';
+    var checked  = obj.formControlPr ? (obj.formControlPr.checked  || 0)  : 0;
+    console.log('[CB] asc_getCheckBoxProps → fmlaLink=', fmlaLink, 'checked=', checked, 'raw fmlaLink=', obj.formControlPr && obj.formControlPr.fmlaLink);
+    return { checked: checked, fmlaLink: fmlaLink };
+  };
+
+  spreadsheet_api.prototype.asc_setCheckBoxProps = function(props) {
+    console.log('[CB] asc_setCheckBoxProps called', props);
+    if (!this.wb || !props || !this.canEdit()) { console.log('[CB] early exit: wb/props/canEdit'); return; }
+    var ws = this.wb.getWorksheet();
+    if (!ws || !ws.objectRender || !ws.objectRender.controller) { console.log('[CB] early exit: ws/objectRender/controller'); return; }
+    var ctrl = ws.objectRender.controller;
+    if (!ctrl.selectedObjects || ctrl.selectedObjects.length !== 1) { console.log('[CB] early exit: selectedObjects.length=', ctrl.selectedObjects && ctrl.selectedObjects.length); return; }
+    var obj = ctrl.selectedObjects[0];
+    if (!obj || !obj.isControl || !obj.isControl() || !obj.isCheckBox || !obj.isCheckBox()) { console.log('[CB] early exit: not a checkbox', obj && obj.constructor && obj.constructor.name); return; }
+    if (typeof props.fmlaLink !== 'undefined' && props.fmlaLink !== '') {
+      var linkCheck = parserHelp.checkDataRange(this.wbModel, this.wb, Asc.c_oAscSelectionDialogType.CheckBox, props.fmlaLink, true);
+      if (linkCheck !== Asc.c_oAscError.ID.No) { console.log('[CB] early exit: bad link', linkCheck); return; }
+    }
+    ctrl.checkObjectsAndCallback(function() {
+      console.log('[CB] checkObjectsAndCallback callback: fmlaLink=', props.fmlaLink, 'checked=', props.checked);
+      if (obj.formControlPr) {
+        if (typeof props.checked !== 'undefined') {
+          obj.formControlPr.setChecked(props.checked);
+        }
+        if (typeof props.fmlaLink !== 'undefined') {
+          obj.formControlPr.setFmlaLink(props.fmlaLink);
+        }
+        obj.controller.updateCellFromControl();
+      } else {
+        console.log('[CB] no formControlPr on obj');
+      }
+    }, [], false, AscDFH.historydescription_Spreadsheet_SwitchCheckbox, [obj]);
+  };
+
   spreadsheet_api.prototype.asc_addOleObjectAction = function(sLocalUrl, sData, sApplicationId, fWidth, fHeight, nWidthPix, nHeightPix, bSelect, arrImagesForAddToHistory)
   {
     var _image = this.ImageLoader.LoadImage(AscCommon.getFullImageSrc2(sLocalUrl), 1);
@@ -10280,6 +10364,9 @@ var editor;
   prot["asc_startAddShape"] = prot.asc_startAddShape;
   prot["asc_endAddShape"] = prot.asc_endAddShape;
   prot["asc_addShapeOnSheet"] = prot.asc_addShapeOnSheet;
+  prot["asc_addCheckBoxOnSheet"] = prot.asc_addCheckBoxOnSheet;
+  prot["asc_getCheckBoxProps"] = prot.asc_getCheckBoxProps;
+  prot["asc_setCheckBoxProps"] = prot.asc_setCheckBoxProps;
   prot["asc_canEditGeometry"] = prot.asc_canEditGeometry;
   prot["asc_editPointsGeometry"] = prot.asc_editPointsGeometry;
   prot["asc_isAddAutoshape"] = prot.asc_isAddAutoshape;

@@ -260,7 +260,7 @@
 
 		var t            = this;
 		//Asc.editor = Asc['editor'] = AscCommon['editor'] = AscCommon.editor = this; // ToDo сделать это!
-		this.HtmlElement = document.getElementById(this.HtmlElementName);
+		this.HtmlElement = this.HtmlElementName ? document.getElementById(this.HtmlElementName) : null;
 		if (this.HtmlElement)
 		{
 			// запрещаем действия браузера по умолчанию

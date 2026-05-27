@@ -7120,6 +7120,16 @@
 			} else {
 				_result_shape_prop.bFromImage = true;
 			}
+			if (shapeProp1.bIsControl || shapeProp2.bIsControl) {
+				_result_shape_prop.bIsControl = true;
+			} else {
+				_result_shape_prop.bIsControl = false;
+			}
+			if (shapeProp1.bFromCheckBox || shapeProp2.bFromCheckBox) {
+				_result_shape_prop.bFromCheckBox = true;
+			} else {
+				_result_shape_prop.bFromCheckBox = false;
+			}
 			if (shapeProp1.locked || shapeProp2.locked) {
 				_result_shape_prop.locked = true;
 			}

@@ -1209,6 +1209,31 @@
 						if (bIsSelectColumns && bIsSelect && bIsMacOs) {
 							break;
 						}
+						// Toggle focused checkbox(es) with plain Space (no modifiers)
+						if (!bIsSelectColumns && !bIsSelect) {
+							const oDrawCtrl = oThis.view.getWorksheet().objectRender.controller;
+							if (oDrawCtrl && oDrawCtrl.selectedObjects && oDrawCtrl.selectedObjects.length >= 1) {
+								const aCheckBoxes = oDrawCtrl.selectedObjects.filter(function (oObj) {
+									return oObj && oObj.isControl && oObj.isControl() && oObj.isCheckBox && oObj.isCheckBox() && !oObj.controller.isExternalCheckBox();
+								});
+								if (aCheckBoxes.length > 0) {
+									oDrawCtrl.checkObjectsAndCallback(function () {
+										aCheckBoxes.forEach(function (oObj) {
+											const oFormControlPr = oObj.controller.getFormControlPr();
+											if (!oObj.controller.isEmpty()) {
+												oFormControlPr.setChecked(AscFormat.CFormControlPr_checked_unchecked);
+											} else {
+												oFormControlPr.setChecked(AscFormat.CFormControlPr_checked_checked);
+											}
+											oObj.controller.updateCellFromControl();
+											oObj.controller.checkNeedUpdate();
+										});
+									}, [], false, AscDFH.historydescription_Spreadsheet_SwitchCheckbox, aCheckBoxes);
+									nRetValue = keydownresult_PreventAll;
+									break;
+								}
+							}
+						}
 						// Disable the browser's standard click handling
 						// Ctrl+Shift+Spacebar, Ctrl+Spacebar, Shift+Spacebar
 						if (bIsSelectColumns) {

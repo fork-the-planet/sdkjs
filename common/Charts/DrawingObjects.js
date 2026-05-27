@@ -1985,6 +1985,117 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
         }
     };
 
+    _this.addCheckBoxOnSheet = function() {
+        if (!this.controller || !_this.canEdit()) {
+            return;
+        }
+        _this.controller.resetSelection();
+
+        var activeCell = worksheet.model.selectionRange.activeCell;
+        var metrics = {col: activeCell.col, colOff: 0, row: activeCell.row, rowOff: 0};
+        var coordsFrom = _this.calculateCoords(metrics);
+        var posX = _this.pxToMm(coordsFrom.x) + MOVE_DELTA;
+        var posY = _this.pxToMm(coordsFrom.y) + MOVE_DELTA;
+
+        // Default checkbox size: ~100pt wide × 14pt tall (in mm)
+        var extX = 30;
+        var extY = 5;
+
+        console.log('[CB] addCheckBoxOnSheet: starting history point');
+        History.Create_NewPoint();
+        console.log('[CB] addCheckBoxOnSheet: History.CanAddChanges()=', AscCommon.History.CanAddChanges(), 'g_oTableId.m_bTurnOff=', AscCommon.g_oTableId.m_bTurnOff);
+
+        // Create CControl with history ON so that CChangesTableIdAdd is generated for
+        // the control and its sub-objects (formControlPr, controlPr).
+        // The CControl constructor now uses direct assignments (not setters) to avoid
+        // spurious history changes during factory reconstruction on other clients.
+        var oControl = new AscFormat.CControl();
+
+        // Explicitly link formControlPr and controlPr via setters so the relationship
+        // changes are included in the collaborative history.
+        oControl.setFormControlPr(oControl.formControlPr);
+        oControl.setControlPr(oControl.controlPr);
+
+        // Use history-tracked setters for properties that must be synced to other clients.
+        oControl.formControlPr.setObjectType(1); // checkBox — also triggers initController on receiver
+        oControl.formControlPr.setChecked(0);
+        oControl.formControlPr.setTextHAlign(6); // left
+        oControl.formControlPr.setTextVAlign(1); // center
+        oControl.formControlPr.setNoThreeD(true);
+
+        oControl.controlPr.setPrint(true);
+        oControl.controlPr.setAutoFill(false);
+        oControl.controlPr.setAutoLine(false);
+
+        oControl.name = _generateCheckBoxName(worksheet.model);
+
+        // setWorksheet must come before createTextBody() so that getDrawingDocument()
+        // resolves correctly (via worksheet → workbook chain).  It is history-tracked
+        // so the assignment is also captured for collaborative replay.
+        oControl.setWorksheet(worksheet.model);
+
+        // Set up spPr with tracked setters (history ON) so that CChangesTableIdAdd is
+        // generated for CSpPr, CXfrm, and Geometry, and their property changes are all
+        // included in the collaborative history for replay on refresh/reconnect.
+        var oSpPr = new AscFormat.CSpPr();
+        oControl.setSpPr(oSpPr);                              // tracked: historyitem_ShapeSetSpPr
+        oSpPr.setGeometry(AscFormat.CreateGeometry('rect'));  // tracked: historyitem_SpPr_SetGeometry
+
+        var oXfrm = new AscFormat.CXfrm();
+        oSpPr.setXfrm(oXfrm);                                // tracked: historyitem_SpPr_SetXfrm
+        oXfrm.setOffX(posX);                                 // tracked: historyitem_Xfrm_SetOffX
+        oXfrm.setOffY(posY);                                 // tracked: historyitem_Xfrm_SetOffY
+        oXfrm.setExtX(extX);                                 // tracked: historyitem_Xfrm_SetExtX
+        oXfrm.setExtY(extY);                                 // tracked: historyitem_Xfrm_SetExtY
+
+        oControl.x    = posX;
+        oControl.y    = posY;
+        oControl.extX = extX;
+        oControl.extY = extY;
+
+        // Controller init and text body creation are local rendering concerns that are
+        // derived from formControlPr.objectType during collaborative replay — no need
+        // to track them.
+        AscFormat.ExecuteNoHistory(function() {
+            oControl.initController();
+            oControl.createTextBody();
+            oControl.initTextProperties();
+
+            var oTxBody = oControl.txBody;
+            if (oTxBody && oTxBody.content && oTxBody.content.Content && oTxBody.content.Content.length > 0) {
+                var oParagraph = oTxBody.content.Content[0];
+                var oRun = new AscCommonWord.ParaRun(oParagraph, false);
+                oRun.AddText(oControl.name);
+                oParagraph.AddToContent(0, oRun);
+            }
+        });
+        oControl.addToDrawingObjects(undefined, AscCommon.c_oAscCellAnchorType.cellanchorOneCell);
+        oControl.controlPr.anchor = oControl.drawingBase;
+        oControl.checkDrawingBaseCoords();
+        AscFormat.ExecuteNoHistory(function() {
+            oControl.recalculateTransform();
+        });
+        oControl.select(_this.controller, 0);
+        _this.controller.startRecalculate();
+        worksheet.setSelectionShape(true);
+    };
+
+    function _generateCheckBoxName(wsModel) {
+        var existing = {};
+        var drawings = wsModel.Drawings || [];
+        for (var i = 0; i < drawings.length; i++) {
+            var go = drawings[i] && drawings[i].graphicObject;
+            if (go && go.name) {
+                existing[go.name] = true;
+            }
+        }
+        var n = 1;
+        while (existing['Check Box ' + n]) {
+            n++;
+        }
+        return 'Check Box ' + n;
+    }
+
     _this.getScrollOffset = function()
     {
         return scrollOffset;

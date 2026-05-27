@@ -351,6 +351,7 @@ function getFlatPenColor() {
 	}
 	AscDFH.drawingsChangesMap[AscDFH.historyitem_Control_FormControlPr] = function (oClass, pr) {
 		oClass.formControlPr = pr;
+		if (pr) { pr.parent = oClass; }
 	}
 
 	function CControl() {
@@ -358,8 +359,16 @@ function getFlatPenColor() {
 		this.name = null;
 		this.link = null;
 		this.rId = null;
-		this.setFormControlPr(new CFormControlPr());
-		this.setControlPr(new CControlPr());
+		// Direct assignments in the constructor so that no history changes are
+		// generated during factory reconstruction (CChangesTableIdAdd.Load).
+		// Setters are called explicitly after construction by callers that need
+		// the changes to be sent to collaborators.
+		var oFcp = new CFormControlPr();
+		this.formControlPr = oFcp;
+		oFcp.parent = this;
+		var oCp = new CControlPr();
+		this.controlPr = oCp;
+		oCp.parent = this;
 		this.controller = null;
 	}
 
@@ -435,6 +444,9 @@ function getFlatPenColor() {
 	CControl.prototype.isControl = function () {
 		return true;
 	}
+	CControl.prototype.isCheckBox = function () {
+		return this.formControlPr && this.formControlPr.objectType === CFormControlPr_objectType_checkBox;
+	};
 	CControl.prototype.onMouseDown = function (e, nX, nY, nPageIndex, oDrawingController) {
 		const bRet = this.controller.onMouseDown(e, nX, nY, nPageIndex, oDrawingController);
 		this.controller.update();
@@ -655,6 +667,9 @@ function getFlatPenColor() {
 	};
 	CControlControllerBase.prototype.hitInInnerArea = function (nX, nY) {
 		const oControl = this.control;
+		if (!oControl.invertTransform) {
+			return false;
+		}
 		return AscFormat.HitToRect(nX, nY, oControl.invertTransform, 0, 0, oControl.extX, oControl.extY);
 	};
 	CControlControllerBase.prototype.handleRef = function(aRanges, oRef, fCallback) {
@@ -864,6 +879,23 @@ function getFlatPenColor() {
 		this.checkNeedUpdate();
 		return true;
 	}
+	CCheckBoxController.prototype.toggleChecked = function (oDrawingController) {
+		if (this.isExternalCheckBox()) {
+			return false;
+		}
+		const oThis = this;
+		oDrawingController.checkObjectsAndCallback(function () {
+			const oFormControlPr = oThis.getFormControlPr();
+			if (!oThis.isEmpty()) {
+				oFormControlPr.setChecked(CFormControlPr_checked_unchecked);
+			} else {
+				oFormControlPr.setChecked(CFormControlPr_checked_checked);
+			}
+			oThis.updateCellFromControl();
+		}, [], false, AscDFH.historydescription_Spreadsheet_SwitchCheckbox, [this.control]);
+		this.checkNeedUpdate();
+		return true;
+	};
 	CCheckBoxController.prototype.getCheckedFromRange = function () {
 		const oRef = this.getParsedFmlaLink();
 		let nRetValue = null;
@@ -917,6 +949,9 @@ function getFlatPenColor() {
 		}
 		const oFormControlPr = this.getFormControlPr();
 		return oFormControlPr.getChecked();
+	};
+	CCheckBoxController.prototype.handleFmlaLink = function (aRanges) {
+		return this.handleRef(aRanges, this.getParsedFmlaLink(), this.checkNeedUpdate.bind(this));
 	};
 	CCheckBoxController.prototype.applySpecialPasteProps = function (oPastedWb) {
 		this.addExternalReferenceToEditor(oPastedWb);
@@ -3000,6 +3035,9 @@ function getFlatPenColor() {
 	};
 	AscDFH.drawingsChangesMap[AscDFH.historyitem_FormControlPr_ObjectType] = function (oClass, value) {
 		oClass.objectType = value;
+		if (oClass.parent && oClass.parent.initController) {
+			oClass.parent.initController();
+		}
 	};
 	AscDFH.drawingsChangesMap[AscDFH.historyitem_FormControlPr_Checked] = function (oClass, value) {
 		oClass.checked = value;
@@ -3413,6 +3451,8 @@ function getFlatPenColor() {
 
 	window["AscFormat"] = window["AscFormat"] || {};
 	window["AscFormat"].CControl = CControl;
+	window["AscFormat"].CControlPr = CControlPr;
+	window["AscFormat"].CFormControlPr = CFormControlPr;
 	window["AscFormat"].CFormControlPr_checked_unchecked = CFormControlPr_checked_unchecked;
 	window["AscFormat"].CFormControlPr_checked_checked = CFormControlPr_checked_checked;
 	window["AscFormat"].CFormControlPr_checked_mixed = CFormControlPr_checked_mixed;
