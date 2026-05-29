@@ -1173,7 +1173,7 @@
 		var xPos = x ? x : parseInt(oTarget.style.left);
 		var yPos = (y ? y : parseInt(oTarget.style.top)) + parseInt(oTarget.style.height);
 
-		if (AscCommon.AscBrowser.isSafari && AscCommon.AscBrowser.isMobile)
+		if (AscCommon.AscBrowser.isSafariMobile)
 			xPos = -100;
 
 		if (this.Api.editorId === AscCommon.c_oEditorId.Presentation)
