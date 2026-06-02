@@ -351,7 +351,7 @@ function getFlatPenColor() {
 	}
 	AscDFH.drawingsChangesMap[AscDFH.historyitem_Control_FormControlPr] = function (oClass, pr) {
 		oClass.formControlPr = pr;
-		if (pr) { pr.parent = oClass; }
+		if (pr) pr.parent = oClass;
 	}
 
 	function CControl() {
@@ -359,16 +359,20 @@ function getFlatPenColor() {
 		this.name = null;
 		this.link = null;
 		this.rId = null;
-		// Direct assignments in the constructor so that no history changes are
-		// generated during factory reconstruction (CChangesTableIdAdd.Load).
-		// Setters are called explicitly after construction by callers that need
-		// the changes to be sent to collaborators.
-		var oFcp = new CFormControlPr();
-		this.formControlPr = oFcp;
-		oFcp.parent = this;
-		var oCp = new CControlPr();
-		this.controlPr = oCp;
-		oCp.parent = this;
+		if (AscCommon.g_oTableId && AscCommon.g_oTableId.m_bTurnOff) {
+			// Called from GetClassFromFactory during collaborative replay (g_oTableId is turned off).
+			// Using setters here would add CChangesDrawingsObject entries to the current history point
+			// with IDs that are not yet registered in g_oTableId. When RedoExecute later processes
+			// those spurious changes it resolves the ID to null and calls
+			// drawingsChangesMap[FormControlPr](control, null), wiping formControlPr. Assign directly.
+			this.formControlPr = new CFormControlPr();
+			this.formControlPr.parent = this;
+			this.controlPr = new CControlPr();
+			this.controlPr.parent = this;
+		} else {
+			this.setFormControlPr(new CFormControlPr());
+			this.setControlPr(new CControlPr());
+		}
 		this.controller = null;
 	}
 
@@ -384,9 +388,15 @@ function getFlatPenColor() {
 		}
 	};
 	CControl.prototype.isNeedResetState = function() {
+		if (!this.controller) {
+			return true;
+		}
 		return this.controller.isNeedResetState();
 	};
 	CControl.prototype.initController = function () {
+		if (!this.formControlPr) {
+			return false;
+		}
 		switch (this.formControlPr.objectType) {
 			case CFormControlPr_objectType_checkBox: {
 				this.controller = new CCheckBoxController(this);
@@ -419,6 +429,9 @@ function getFlatPenColor() {
 		return true;
 	}
 	CControl.prototype.draw = function (graphics, transform, transformText, pageIndex, opt) {
+		if (!this.controller) {
+			return;
+		}
 		const oUR = graphics.updatedRect;
 		if (oUR && this.bounds) {
 			if (!oUR.isIntersectOther(this.bounds)) {
@@ -432,6 +445,9 @@ function getFlatPenColor() {
 		}
 	};
 	CControl.prototype.hitInInnerArea = function (x, y) {
+		if (!this.controller) {
+			return false;
+		}
 		return this.controller.hitInInnerArea(x, y);
 	}
 	CControl.prototype.hitInPath = CControl.prototype.hitInInnerArea;
@@ -448,30 +464,36 @@ function getFlatPenColor() {
 		return this.formControlPr && this.formControlPr.objectType === CFormControlPr_objectType_checkBox;
 	};
 	CControl.prototype.onMouseDown = function (e, nX, nY, nPageIndex, oDrawingController) {
+		if (!this.controller) return false;
 		const bRet = this.controller.onMouseDown(e, nX, nY, nPageIndex, oDrawingController);
 		this.controller.update();
 		return bRet;
 	}
 	CControl.prototype.onMouseMove = function (e, nX, nY, nPageIndex, oDrawingController) {
+		if (!this.controller) return false;
 		const bRet = this.controller.onMouseMove(e, nX, nY, nPageIndex, oDrawingController);
 		this.controller.update();
 		return bRet;
 	}
 	CControl.prototype.onMouseUp = function (e, nX, nY, nPageIndex, oDrawingController) {
+		if (!this.controller) return false;
 		const bRet = this.controller.onMouseUp(e, nX, nY, nPageIndex, oDrawingController);
 		this.controller.update();
 		return bRet;
 	}
 	CControl.prototype.getCursorInfo = function (e, nX, nY) {
+		if (!this.controller) return null;
 		return this.controller.getCursorInfo(e, nX, nY);
 	}
 	CControl.prototype.getTextRect = function () {
+		if (!this.controller) return null;
 		return this.controller.getTextRect();
 	};
 	CControl.prototype.canRotate = function () {
 		return false;
 	};
 	CControl.prototype.canEditText = function () {
+		if (!this.controller) return false;
 		return this.controller.canEditText();
 	};
 	CControl.prototype.canEditGeometry = function () {
@@ -483,7 +505,8 @@ function getFlatPenColor() {
 		this.controlPr.setParent(this);
 	};
 	CControl.prototype.setFormControlPr = function (pr) {
-		AscCommon.History.CanAddChanges() && AscCommon.History.Add(new AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_Control_FormControlPr, this.formControlPr, pr));
+		var willAddChange = AscCommon.History.CanAddChanges();
+		willAddChange && AscCommon.History.Add(new AscDFH.CChangesDrawingsObject(this, AscDFH.historyitem_Control_FormControlPr, this.formControlPr, pr));
 		this.formControlPr = pr;
 		this.formControlPr.setParent(this);
 	};
@@ -521,6 +544,9 @@ function getFlatPenColor() {
 		return this.formControlPr;
 	};
 	CControl.prototype.getChecked = function () {
+		if (!this.controller) {
+			return null;
+		}
 		return this.controller.getChecked();
 	}
 	CControl.prototype.copy = function (oPr) {
@@ -530,10 +556,14 @@ function getFlatPenColor() {
 		return copy;
 	};
 	CControl.prototype.applySpecialPasteProps = function (oPastedWb) {
-		this.controller.applySpecialPasteProps(oPastedWb);
+		if (this.controller) {
+			this.controller.applySpecialPasteProps(oPastedWb);
+		}
 	};
 	CControl.prototype.initTextProperties = function () {
-		this.controller.initTextProperties();
+		if (this.controller) {
+			this.controller.initTextProperties();
+		}
 	};
 	CControl.prototype.setMacro = function (pr) {
 		this.controlPr.setMacro(pr);
@@ -559,17 +589,26 @@ function getFlatPenColor() {
 	};
 	CControl.prototype.recalculateTransform = function () {
 		AscFormat.CShape.prototype.recalculateTransform.call(this);
-		this.controller.recalculateTransform();
+		if (this.controller) {
+			this.controller.recalculateTransform();
+		}
 	};
 	CControl.prototype.recalculate = function () {
 		AscFormat.CShape.prototype.recalculate.call(this);
-		this.controller.recalculate();
+		if (this.controller) {
+			this.controller.recalculate();
+		}
 	};
 	CControl.prototype.handleChangeRanges = function (arrRanges) {
+		if (!this.controller) {
+			return false;
+		}
 		return this.controller.handleChangeRanges(arrRanges);
 	}
 	CControl.prototype.onUpdate = function () {
-		this.controller.onUpdate();
+		if (this.controller) {
+			this.controller.onUpdate();
+		}
 	};
 
 	function CControlControllerBase(oControl) {
@@ -667,9 +706,6 @@ function getFlatPenColor() {
 	};
 	CControlControllerBase.prototype.hitInInnerArea = function (nX, nY) {
 		const oControl = this.control;
-		if (!oControl.invertTransform) {
-			return false;
-		}
 		return AscFormat.HitToRect(nX, nY, oControl.invertTransform, 0, 0, oControl.extX, oControl.extY);
 	};
 	CControlControllerBase.prototype.handleRef = function(aRanges, oRef, fCallback) {
@@ -879,23 +915,6 @@ function getFlatPenColor() {
 		this.checkNeedUpdate();
 		return true;
 	}
-	CCheckBoxController.prototype.toggleChecked = function (oDrawingController) {
-		if (this.isExternalCheckBox()) {
-			return false;
-		}
-		const oThis = this;
-		oDrawingController.checkObjectsAndCallback(function () {
-			const oFormControlPr = oThis.getFormControlPr();
-			if (!oThis.isEmpty()) {
-				oFormControlPr.setChecked(CFormControlPr_checked_unchecked);
-			} else {
-				oFormControlPr.setChecked(CFormControlPr_checked_checked);
-			}
-			oThis.updateCellFromControl();
-		}, [], false, AscDFH.historydescription_Spreadsheet_SwitchCheckbox, [this.control]);
-		this.checkNeedUpdate();
-		return true;
-	};
 	CCheckBoxController.prototype.getCheckedFromRange = function () {
 		const oRef = this.getParsedFmlaLink();
 		let nRetValue = null;
@@ -949,9 +968,6 @@ function getFlatPenColor() {
 		}
 		const oFormControlPr = this.getFormControlPr();
 		return oFormControlPr.getChecked();
-	};
-	CCheckBoxController.prototype.handleFmlaLink = function (aRanges) {
-		return this.handleRef(aRanges, this.getParsedFmlaLink(), this.checkNeedUpdate.bind(this));
 	};
 	CCheckBoxController.prototype.applySpecialPasteProps = function (oPastedWb) {
 		this.addExternalReferenceToEditor(oPastedWb);
@@ -3035,9 +3051,7 @@ function getFlatPenColor() {
 	};
 	AscDFH.drawingsChangesMap[AscDFH.historyitem_FormControlPr_ObjectType] = function (oClass, value) {
 		oClass.objectType = value;
-		if (oClass.parent && oClass.parent.initController) {
-			oClass.parent.initController();
-		}
+		if (oClass.parent && oClass.parent.initController) oClass.parent.initController();
 	};
 	AscDFH.drawingsChangesMap[AscDFH.historyitem_FormControlPr_Checked] = function (oClass, value) {
 		oClass.checked = value;
@@ -3093,6 +3107,7 @@ function getFlatPenColor() {
 		oClass.fmlaGroup = value;
 	};
 	AscDFH.drawingsChangesMap[AscDFH.historyitem_FormControlPr_FmlaLink] = function (oClass, value) {
+		console.log('[DBG] drawingsChangesMap[FmlaLink] oClass:', oClass && oClass.Get_Id ? oClass.Get_Id() : oClass, 'value:', value);
 		oClass.fmlaLink = value;
 	};
 	AscDFH.drawingsChangesMap[AscDFH.historyitem_FormControlPr_FmlaRange] = function (oClass, value) {
@@ -3184,6 +3199,9 @@ function getFlatPenColor() {
 	}
 
 	AscFormat.InitClass(CFormControlPr, AscFormat.CBaseFormatObject, AscDFH.historyitem_type_FormControlPr);
+	CFormControlPr.prototype.Write_ToBinary2 = function (oWriter) {
+		AscFormat.CBaseFormatObject.prototype.Write_ToBinary2.call(this, oWriter);
+	};
 	CFormControlPr.prototype.setDropLines = function (pr) {
 		AscCommon.History.CanAddChanges() && AscCommon.History.Add(new AscDFH.CChangesDrawingsLong(this, AscDFH.historyitem_FormControlPr_DropLines, this.dropLines, pr));
 		this.dropLines = pr;
@@ -3191,11 +3209,11 @@ function getFlatPenColor() {
 	CFormControlPr.prototype.getDropLines = function () {
 		return this.dropLines;
 	}
-	CFormControlPr.prototype.setObjectType = function (pr) {
+	CFormControlPr.prototype.setFcObjectType = function (pr) {
 		AscCommon.History.CanAddChanges() && AscCommon.History.Add(new AscDFH.CChangesDrawingsLong(this, AscDFH.historyitem_FormControlPr_ObjectType, this.objectType, pr));
 		this.objectType = pr;
 	}
-	CFormControlPr.prototype.getObjectType = function () {
+	CFormControlPr.prototype.getFcObjectType = function () {
 		return this.objectType;
 	}
 	CFormControlPr.prototype.setChecked = function (pr) {
@@ -3414,7 +3432,7 @@ function getFlatPenColor() {
 	};
 	CFormControlPr.prototype.fillObject = function (oCopy, oPr) {
 		oCopy.setDropLines(this.dropLines);
-		oCopy.setObjectType(this.objectType);
+		oCopy.setFcObjectType(this.objectType);
 		oCopy.setChecked(this.checked);
 		oCopy.setDropStyle(this.dropStyle);
 		oCopy.setDx(this.dx);
@@ -3458,4 +3476,5 @@ function getFlatPenColor() {
 	window["AscFormat"].CFormControlPr_checked_mixed = CFormControlPr_checked_mixed;
 	window["AscFormat"].getVerticalControlAlignFromBodyPr = getVerticalControlAlignFromBodyPr;
 	window["AscFormat"].getHorizontalAlignFromControl = getHorizontalAlignFromControl;
+	window["AscFormat"].getListBoxItemTextPr = getListBoxItemTextPr;
 })();
