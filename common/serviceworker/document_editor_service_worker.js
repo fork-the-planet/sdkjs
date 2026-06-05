@@ -376,21 +376,7 @@ function activateWorker(event) {
 					return caches.delete(cache);
 				});
 			return Promise.all(deletePromises);
-		})
-		.then(function() {
-			// Purge any already-cached sdk-all*.js entries so recompilation takes effect immediately
-			return caches.open(g_cacheName).then(function(cache) {
-				return cache.keys().then(function(keys) {
-					const sdkAllKeys = keys.filter(function(req) {
-						return /sdk-all(?:-min)?\.js$/.test(req.url);
-					});
-					return Promise.all(sdkAllKeys.map(function(req) {
-						return cache.delete(req);
-					}));
-				});
-			});
-		})
-		.catch(function (err) {
+		}).catch(function (err) {
 			console.error('activateWorker failed with ' + err);
 		});
 }
@@ -443,11 +429,6 @@ self.addEventListener('fetch', (event) => {
 
 	// Desktop editor exclusion
 	if (isDesktopEditor && url.indexOf("/sdkjs/common/AllFonts.js") !== -1) {
-		return;
-	}
-
-	// Dev: bypass SW cache for compiled SDK bundles so recompilation takes effect immediately
-	if (/sdk-all(?:-min)?\.js$/.test(url)) {
 		return;
 	}
 
