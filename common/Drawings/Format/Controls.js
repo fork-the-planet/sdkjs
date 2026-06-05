@@ -593,6 +593,22 @@ function getFlatPenColor() {
 			this.controller.recalculateTransform();
 		}
 	};
+	CControl.prototype.Refresh_RecalcData = function (data) {
+		switch (data && data.Type !== undefined ? data.Type : data) {
+			case AscDFH.historyitem_AutoShapes_SetDrawingBaseCoors:
+			case AscDFH.historyitem_AutoShapes_AddToDrawingObjects:
+			case AscDFH.historyitem_AutoShapes_SetDrawingBaseType:
+			case AscDFH.historyitem_AutoShapes_SetDrawingBasePos:
+			case AscDFH.historyitem_AutoShapes_SetDrawingBaseExt: {
+				this.recalcTransform && this.recalcTransform();
+				this.addToRecalculate && this.addToRecalculate();
+				break;
+			}
+			default: {
+				AscFormat.CShape.prototype.Refresh_RecalcData.call(this, data);
+			}
+		}
+	};
 	CControl.prototype.recalculate = function () {
 		AscFormat.CShape.prototype.recalculate.call(this);
 		if (this.controller) {
@@ -706,6 +722,7 @@ function getFlatPenColor() {
 	};
 	CControlControllerBase.prototype.hitInInnerArea = function (nX, nY) {
 		const oControl = this.control;
+		if (!oControl.invertTransform) return false;
 		return AscFormat.HitToRect(nX, nY, oControl.invertTransform, 0, 0, oControl.extX, oControl.extY);
 	};
 	CControlControllerBase.prototype.handleRef = function(aRanges, oRef, fCallback) {
@@ -3051,7 +3068,9 @@ function getFlatPenColor() {
 	};
 	AscDFH.drawingsChangesMap[AscDFH.historyitem_FormControlPr_ObjectType] = function (oClass, value) {
 		oClass.objectType = value;
-		if (oClass.parent && oClass.parent.initController) oClass.parent.initController();
+		if (oClass.parent && oClass.parent.initController) {
+			oClass.parent.initController();
+		}
 	};
 	AscDFH.drawingsChangesMap[AscDFH.historyitem_FormControlPr_Checked] = function (oClass, value) {
 		oClass.checked = value;
@@ -3107,7 +3126,6 @@ function getFlatPenColor() {
 		oClass.fmlaGroup = value;
 	};
 	AscDFH.drawingsChangesMap[AscDFH.historyitem_FormControlPr_FmlaLink] = function (oClass, value) {
-		console.log('[DBG] drawingsChangesMap[FmlaLink] oClass:', oClass && oClass.Get_Id ? oClass.Get_Id() : oClass, 'value:', value);
 		oClass.fmlaLink = value;
 	};
 	AscDFH.drawingsChangesMap[AscDFH.historyitem_FormControlPr_FmlaRange] = function (oClass, value) {
@@ -3471,6 +3489,16 @@ function getFlatPenColor() {
 	window["AscFormat"].CControl = CControl;
 	window["AscFormat"].CControlPr = CControlPr;
 	window["AscFormat"].CFormControlPr = CFormControlPr;
+
+	// Register factory entries here (not in TableId.js) because TableId.js is in the
+	// sdk-all-min.js chunk which executes before sdk-all.js — AscFormat.CControl etc.
+	// are undefined at that point, so the if(AscCommonExcel) block in CTableId constructor
+	// is skipped. Registering here ensures the classes are defined before the entries are set.
+	if (AscCommon.g_oTableId) {
+		AscCommon.g_oTableId.m_oFactoryClass[AscDFH.historyitem_type_Control]       = CControl;
+		AscCommon.g_oTableId.m_oFactoryClass[AscDFH.historyitem_type_ControlPr]     = CControlPr;
+		AscCommon.g_oTableId.m_oFactoryClass[AscDFH.historyitem_type_FormControlPr] = CFormControlPr;
+	}
 	window["AscFormat"].CFormControlPr_checked_unchecked = CFormControlPr_checked_unchecked;
 	window["AscFormat"].CFormControlPr_checked_checked = CFormControlPr_checked_checked;
 	window["AscFormat"].CFormControlPr_checked_mixed = CFormControlPr_checked_mixed;

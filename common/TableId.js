@@ -58,10 +58,10 @@
 	{
 		if (this.m_bTurnOff || !Class)
 			return;
-		
+
 		Class.Id          = Id;
 		this.m_aPairs[Id] = Class;
-		
+
 		AscCommon.History.Add(new AscCommon.CChangesTableIdAdd(this, Id, Class));
 	};
 	CTableId.prototype.TurnOff = function()
@@ -239,9 +239,6 @@
 		this.m_oFactoryClass[AscDFH.historyitem_type_PageMarginsChart]       = AscFormat.CPageMarginsChart;
 		this.m_oFactoryClass[AscDFH.historyitem_type_PageSetup]              = AscFormat.CPageSetup;
 		this.m_oFactoryClass[AscDFH.historyitem_type_Shape]                  = AscFormat.CShape;
-		this.m_oFactoryClass[AscDFH.historyitem_type_Control]                = AscFormat.CControl;
-		this.m_oFactoryClass[AscDFH.historyitem_type_ControlPr]              = AscFormat.CControlPr;
-		this.m_oFactoryClass[AscDFH.historyitem_type_FormControlPr]          = AscFormat.CFormControlPr;
 		this.m_oFactoryClass[AscDFH.historyitem_type_DispUnits]              = AscFormat.CDispUnits;
 		this.m_oFactoryClass[AscDFH.historyitem_type_GroupShape]             = AscFormat.CGroupShape;
 		this.m_oFactoryClass[AscDFH.historyitem_type_LockedCanvas]           = AscFormat.CLockedCanvas;
@@ -440,6 +437,9 @@
 			this.m_oFactoryClass[AscDFH.historyitem_type_CViewPr]              = AscFormat.CCViewPr;
 			this.m_oFactoryClass[AscDFH.historyitem_type_ViewPrScale]          = AscFormat.CViewPrScale;
 			this.m_oFactoryClass[AscDFH.historyitem_type_ViewPrGuide]          = AscFormat.CViewPrGuide;
+			this.m_oFactoryClass[AscDFH.historyitem_type_Control]              = AscFormat.CControl;
+			this.m_oFactoryClass[AscDFH.historyitem_type_ControlPr]            = AscFormat.CControlPr;
+			this.m_oFactoryClass[AscDFH.historyitem_type_FormControlPr]        = AscFormat.CFormControlPr;
 
 		}
 

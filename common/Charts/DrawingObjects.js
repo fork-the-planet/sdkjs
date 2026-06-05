@@ -1402,7 +1402,6 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
     DrawingBase.prototype.getGraphicObjectMetrics = function() {
         var _t = this;
         var metrics = { x: 0, y: 0, extX: 0, extY: 0 };
-
         var coordsFrom, coordsTo;
         switch(_t.Type)
         {
@@ -1434,20 +1433,18 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
             case c_oAscCellAnchorType.cellanchorTwoCell:
             {
                 if (this.worksheet) {
-                    coordsFrom = this.getDrawingObjects().calculateCoords(_t.from);
+                    var drawingObjects = this.getDrawingObjects();
+                    coordsFrom = drawingObjects.calculateCoords(_t.from);
+                    coordsTo = drawingObjects.calculateCoords(_t.to);
                     if (!this.worksheet.getRightToLeft()) {
                         metrics.x = this.pxToMm( coordsFrom.x );
                         metrics.y = this.pxToMm( coordsFrom.y );
-                        coordsTo = this.getDrawingObjects().calculateCoords(_t.to);
                         metrics.extX = this.pxToMm( coordsTo.x - coordsFrom.x );
                         metrics.extY = this.pxToMm( coordsTo.y - coordsFrom.y );
                     } else {
                         metrics.y = this.pxToMm( coordsFrom.y );
-
-                        coordsTo = this.getDrawingObjects().calculateCoords(_t.to);
-                        metrics.extX = this.pxToMm(  coordsFrom.x - coordsTo.x );
+                        metrics.extX = this.pxToMm( coordsFrom.x - coordsTo.x );
                         metrics.extY = this.pxToMm( coordsTo.y - coordsFrom.y );
-
                         metrics.x = this.pxToMm( coordsTo.x );
                     }
                 }
@@ -1997,30 +1994,17 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
         var posX = _this.pxToMm(coordsFrom.x) + MOVE_DELTA;
         var posY = _this.pxToMm(coordsFrom.y) + MOVE_DELTA;
 
-        // Default checkbox size: ~100pt wide × 14pt tall (in mm)
         var extX = 30;
         var extY = 5;
 
-        console.log('[CB] addCheckBoxOnSheet: starting history point');
         History.Create_NewPoint();
-        console.log('[CB] addCheckBoxOnSheet: History.CanAddChanges()=', AscCommon.History.CanAddChanges(), 'g_oTableId.m_bTurnOff=', AscCommon.g_oTableId.m_bTurnOff);
 
-        // Create CControl with history ON so that CChangesTableIdAdd is generated for
-        // the control and its sub-objects (formControlPr, controlPr).
-        // The CControl constructor now uses direct assignments (not setters) to avoid
-        // spurious history changes during factory reconstruction on other clients.
         var oControl = new AscFormat.CControl();
 
-        // Explicitly link formControlPr and controlPr via setters so the relationship
-        // changes are included in the collaborative history.
-        oControl.setFormControlPr(oControl.formControlPr);
-        oControl.setControlPr(oControl.controlPr);
-
-        // Use history-tracked setters for properties that must be synced to other clients.
-        oControl.formControlPr.setObjectType(1); // checkBox — also triggers initController on receiver
+        oControl.formControlPr.setFcObjectType(1);
         oControl.formControlPr.setChecked(0);
-        oControl.formControlPr.setTextHAlign(6); // left
-        oControl.formControlPr.setTextVAlign(1); // center
+        oControl.formControlPr.setTextHAlign(6);
+        oControl.formControlPr.setTextVAlign(1);
         oControl.formControlPr.setNoThreeD(true);
 
         oControl.controlPr.setPrint(true);
@@ -2029,52 +2013,41 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
 
         oControl.name = _generateCheckBoxName(worksheet.model);
 
-        // setWorksheet must come before createTextBody() so that getDrawingDocument()
-        // resolves correctly (via worksheet → workbook chain).  It is history-tracked
-        // so the assignment is also captured for collaborative replay.
-        oControl.setWorksheet(worksheet.model);
-
-        // Set up spPr with tracked setters (history ON) so that CChangesTableIdAdd is
-        // generated for CSpPr, CXfrm, and Geometry, and their property changes are all
-        // included in the collaborative history for replay on refresh/reconnect.
         var oSpPr = new AscFormat.CSpPr();
-        oControl.setSpPr(oSpPr);                              // tracked: historyitem_ShapeSetSpPr
-        oSpPr.setGeometry(AscFormat.CreateGeometry('rect'));  // tracked: historyitem_SpPr_SetGeometry
+        oControl.setSpPr(oSpPr);
+        oSpPr.setGeometry(AscFormat.CreateGeometry('rect'));
+
+        var oLn = new AscFormat.CLn();
+        oLn.setFill(AscFormat.CreateSolidFillRGB(0, 0, 0));
+        oSpPr.setLn(oLn);
 
         var oXfrm = new AscFormat.CXfrm();
-        oSpPr.setXfrm(oXfrm);                                // tracked: historyitem_SpPr_SetXfrm
-        oXfrm.setOffX(posX);                                 // tracked: historyitem_Xfrm_SetOffX
-        oXfrm.setOffY(posY);                                 // tracked: historyitem_Xfrm_SetOffY
-        oXfrm.setExtX(extX);                                 // tracked: historyitem_Xfrm_SetExtX
-        oXfrm.setExtY(extY);                                 // tracked: historyitem_Xfrm_SetExtY
+        oSpPr.setXfrm(oXfrm);
+        oXfrm.setOffX(posX);
+        oXfrm.setOffY(posY);
+        oXfrm.setExtX(extX);
+        oXfrm.setExtY(extY);
 
         oControl.x    = posX;
         oControl.y    = posY;
         oControl.extX = extX;
         oControl.extY = extY;
 
-        // Controller init and text body creation are local rendering concerns that are
-        // derived from formControlPr.objectType during collaborative replay — no need
-        // to track them.
-        AscFormat.ExecuteNoHistory(function() {
-            oControl.initController();
-            oControl.createTextBody();
-            oControl.initTextProperties();
+        oControl.bDeleted = false;
 
-            var oTxBody = oControl.txBody;
-            if (oTxBody && oTxBody.content && oTxBody.content.Content && oTxBody.content.Content.length > 0) {
-                var oParagraph = oTxBody.content.Content[0];
-                var oRun = new AscCommonWord.ParaRun(oParagraph, false);
-                oRun.AddText(oControl.name);
-                oParagraph.AddToContent(0, oRun);
-            }
-        });
-        oControl.addToDrawingObjects(undefined, AscCommon.c_oAscCellAnchorType.cellanchorOneCell);
+        oControl.initController();
+
+        oControl.createTextBody();
+        var oParagraph = oControl.txBody.content.GetAllParagraphs()[0];
+        oParagraph.MoveCursorToStartPos();
+        var oParaRun = new AscCommonWord.ParaRun(oParagraph);
+        oParaRun.AddText(oControl.name);
+        oParagraph.AddToContent(0, oParaRun);
+        oControl.initTextProperties();
+        oControl.setWorksheet(worksheet.model);
+        oControl.addToDrawingObjects(undefined, AscCommon.c_oAscCellAnchorType.cellanchorTwoCell);
         oControl.controlPr.anchor = oControl.drawingBase;
         oControl.checkDrawingBaseCoords();
-        AscFormat.ExecuteNoHistory(function() {
-            oControl.recalculateTransform();
-        });
         oControl.select(_this.controller, 0);
         _this.controller.startRecalculate();
         worksheet.setSelectionShape(true);
@@ -2219,7 +2192,7 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
         _this.drawingDocument.drawingObjects = this;
         _this.drawingDocument.AutoShapesTrack = api.wb.autoShapeTrack;
         _this.drawingDocument.TargetHtmlElement = document.getElementById('id_target_cursor');
-        _this.drawingDocument.InitGuiCanvasShape(api.shapeElementId);
+        if (api.shapeElementId) { _this.drawingDocument.InitGuiCanvasShape(api.shapeElementId); }
         _this.controller = new AscFormat.DrawingObjectsController(_this);
         _this.canEdit = function() { return api.canEdit(); };
 
