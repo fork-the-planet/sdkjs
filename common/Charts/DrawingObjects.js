@@ -2018,7 +2018,7 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
         oSpPr.setGeometry(AscFormat.CreateGeometry('rect'));
 
         var oLn = new AscFormat.CLn();
-        oLn.setFill(AscFormat.CreateSolidFillRGB(0, 0, 0));
+        oLn.setFill(AscFormat.CreateSolidFillRGB(155, 155, 155));
         oSpPr.setLn(oLn);
 
         var oXfrm = new AscFormat.CXfrm();
