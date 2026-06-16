@@ -1,4 +1,4 @@
-# CLAUDE.md
+# sdkjs — Euro-Office JavaScript SDK
 
 Guidance for Claude Code (and other AI agents) working in **sdkjs** — the Euro-Office
 JavaScript SDK for the document editors.
@@ -15,6 +15,18 @@ bundles (`sdk-all.js` / `sdk-all-min.js`) that the sibling **web-apps** repo loa
 `<script>` tags. sdkjs lives in a multi-repo workspace alongside `web-apps` (the UI/toolbars),
 `core` (the C++/WASM engine, fonts, x2t converter), `server`, and `DocumentServer`. Licensed
 **AGPL v3** (GUI assets are CC-BY-SA 4.0).
+
+## Multi-tool instruction files
+
+Different AI tools read different instruction files in this workspace:
+
+- **Claude / Claude Code** reads `CLAUDE.md` (this file).
+- **Cursor** reads `AGENTS.md` and `.cursor/rules`.
+- **Gemini / GPT-based agents** read `AGENTS.md`.
+
+The workspace-level dev-environment doc (Docker stack, container exec, healthcheck) lives in
+`/DocumentServer/AGENTS.md`. Keep **one canonical source** and have the others reference it
+rather than duplicate content — silent divergence across tools is the failure mode to avoid.
 
 ## Repository layout
 
@@ -67,8 +79,10 @@ it lists only `word/sdk-all.js` though grunt builds all editors.)
 
 There are **no ES modules and no tree-shaking** — files are plain scripts concatenated in the
 order listed in `configs/<editor>.json`. A new `.js` is invisible to the build until you add it
-to the right array (`sdk.min` = core engine → `sdk-all-min.js`; `sdk.common` = the rest →
-`sdk-all.js`). Order matters: dependencies must appear before dependents (e.g. `apiCommon.js`
+to the right array inside the top-level `sdk` object in the config (`sdk` → `min` = core engine
+→ `sdk-all-min.js`; `sdk` → `common` = the rest → `sdk-all.js`; also `desktop`, `mobile`,
+`exclude_mobile`). There is no flat key called `sdk.min` — grep for `"min":` inside the `sdk`
+block. Order matters: dependencies must appear before dependents (e.g. `apiCommon.js`
 before `api.js`).
 
 ## Tests
@@ -85,9 +99,15 @@ node node_modules/grunt-cli/bin/grunt --gruntfile build/Gruntfile.js develop
 node node_modules/node-qunit-puppeteer/cli.js tests/word/api/api.html 30000 "--no-sandbox"
 ```
 
-CI (`.github/workflows/check-build.yml`, self-hosted runners) enumerates ~75 such suites
+CI (`.github/workflows/check-build.yml`, self-hosted runners) enumerates **66** such suites
 explicitly — there is **no working aggregate runner** (`tests/runAll.js` exists but CI doesn't
-use it). Heaviest coverage is in `tests/cell/spreadsheet-calculation/` (formula engine) and
+use it).
+
+**CI branch scope:** `check-build.yml` triggers on push and pull_request for `fork`, `develop`,
+`release/**`, and `hotfix/**`. It does **not** run on `main` — PRs targeting `main` are not
+CI-guarded by this workflow.
+
+Heaviest coverage is in `tests/cell/spreadsheet-calculation/` (formula engine) and
 `tests/word/`. Suites depend on the generated `develop/sdkjs/*/scripts.js`, so run
 `grunt develop` first.
 
@@ -188,3 +208,10 @@ Each editor dir has the same set of API files:
 - `make` pulls in `../web-apps`; for SDK-only work use `grunt` in `build/`.
 - Use `npm ci` (not `npm install`) in `build/` to respect the committed `npm-shrinkwrap.json`.
 - The full `grunt` build needs Java; `grunt develop` does not.
+
+## Where future findings live
+
+This file is orientation-only — keep it small. Long-tail findings (edge-case behaviours,
+subsystem quirks, debugging recipes) belong in the findings store described in issue **#51**
+(frontmatter docs + derived index + local vector DB cache). Once #51 lands, that store is the
+canonical home; add new discoveries there, not here.
