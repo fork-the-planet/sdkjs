@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: setup python
         uses: actions/setup-python@v6
@@ -31,7 +31,7 @@ jobs:
           sudo apt-get install -y libatk1.0-0 libcups2 libatk-bridge2.0-0 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libnss3 libgbm1 libasound2t64
 
       - name: check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           path: sdkjs
 
@@ -39,7 +39,7 @@ jobs:
       # branch in sdkjs-forms, fall back to master (mirrors the build-test job).
       - name: check out repository sdkjs-forms current branch
         id: sdkjs-forms
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         continue-on-error: true
         with:
           repository: Euro-Office/sdkjs-forms
@@ -48,7 +48,7 @@ jobs:
           ref: ${{ github.ref }}
       - name: check out repository sdkjs-forms master branch
         if: steps.sdkjs-forms.outcome != 'success'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: Euro-Office/sdkjs-forms
           token: ${{ secrets.READ_PAT }}
@@ -75,13 +75,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           path: sdkjs
 
       - name: check out repository sdkjs-forms current branch
         id: sdkjs-forms
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         continue-on-error: true
         with:
           repository: Euro-Office/sdkjs-forms
@@ -90,7 +90,7 @@ jobs:
           ref: ${{ github.ref }}
       - name: check out repository sdkjs-forms master branch
         if: steps.sdkjs-forms.outcome != 'success'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: Euro-Office/sdkjs-forms
           token: ${{ secrets.READ_PAT }}
