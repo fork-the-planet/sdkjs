@@ -34,6 +34,8 @@ bundles (`sdk-all.js` / `sdk-all-min.js`) that the sibling **web-apps** repo loa
 
 ## Build & develop
 
+For Docker dev environment setup (running the full server stack), see [/DocumentServer/AGENTS.md](../DocumentServer/AGENTS.md).
+
 Requires **Node.js** and, for the full compile, **Java** (the build uses Google Closure
 Compiler, pinned to `google-closure-compiler@20240317`). There is **no root `package.json`**;
 all build deps live in `build/`.
